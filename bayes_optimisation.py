@@ -37,8 +37,11 @@ def update(frame):
     x_ast = np.linspace(-5, 5, 100)
 
     gp = GaussianProcess(X, y, x_ast)
-    print(X)
     plot_gp(ax, gp, X, y, x_ast, f, new_x, new_y)
+
+    if abs(new_y - best) < 1e-5:
+        print("Optimisation stopped!!!")
+        ani.event_source.stop()
 
 if __name__ == '__main__':
     f = lambda x: (-(x - 2) ** 2 + 1) * np.cos(x)
@@ -49,10 +52,8 @@ if __name__ == '__main__':
     gp = GaussianProcess(X, y, x_ast)
 
     fig, ax = plt.subplots()
-
-    def init():
-        plot_gp(ax, gp, X, y, x_ast, f, None, None)
-        return ax,
+    
+    plot_gp(ax, gp, X, y, x_ast, f, None, None)
 
     ani = FuncAnimation(fig, func = update, frames=100, interval=1000)
     
