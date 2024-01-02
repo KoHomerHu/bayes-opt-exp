@@ -10,4 +10,4 @@ Run ```gaussian_process.py```, use the sliders to change the alpha and length to
 
 ## Bayesian optimisation
 
-An animation to optimize a function with only one peak (but not only one global optimum) is demonstrated by running ```bayesian_optimisation.py```.
+An animation to optimize a function with only one peak (but not only one global optimum) is demonstrated by running ```bayes_optimisation.py```.
