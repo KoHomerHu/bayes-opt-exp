@@ -1,40 +1,6 @@
 import numpy as np
 from scipy import optimize
-
-def cholesky_decomposition(A):
-    L = np.zeros_like(A)
-    for i in range(len(A)):
-        for j in range(i + 1):
-            if i == j:
-                L[i, j] = np.sqrt(A[i, i] - np.sum(L[i, :] ** 2))
-            else:
-                L[i, j] = (A[i, j] - np.sum(L[i, :] * L[j, :])) / L[j, j]
-    return L
-
-def forward_substitution(L, b):
-    n = len(b)
-    y = np.zeros(n)
-    for i in range(n):
-        y[i] = (b[i] - np.dot(L[i, :i], y[:i])) / L[i, i]
-    return y
-
-def backward_substitution(R, b):
-    n = len(b)
-    x = np.zeros(n)
-    for i in reversed(range(n)):
-        x[i] = (b[i] - np.dot(R[i, i + 1:], x[i + 1:])) / R[i, i]
-    return x
-
-def cholesky_solve(L, b):
-    x = np.zeros_like(b)
-    if len(b.shape) == 1:
-        y = forward_substitution(L, b)
-        x = backward_substitution(L.T, y)
-    else:
-        for i in range(b.shape[1]):
-            y = forward_substitution(L, b[:, i])
-            x[:, i] = backward_substitution(L.T, y)
-    return x
+from utils import cholesky_decomposition, cholesky_solve
 
 """Gaussian Process with constant mean and RBF kernel"""
 class GaussianProcess():
@@ -80,12 +46,12 @@ class GaussianProcess():
                 A[i, j] = kernel_theta(self.X[i], self.X[j])
         A = A + sigma ** 2 * np.eye(len(self.X))
         L = cholesky_decomposition(A)
-        return 0.5 * np.dot(y - mean, cholesky_solve(L, self.y - mean)) + np.sum(np.log(np.diag(L)))
+        return 0.5 * np.dot(self.y - mean, cholesky_solve(L, self.y - mean)) + np.sum(np.log(np.diag(L)))
 
     """Obtain the MLE estimation of the hyperparameters mean, alpha, length and sigma"""
     def get_hyperparameter(self):
         pars = np.array([self.mean, self.alpha, self.length, self.sigma])
-        result = optimize.minimize(self.neg_log_likelihood, pars, method='Powell', 
+        result = optimize.minimize(self.neg_log_likelihood, pars, method='L-BFGS-B', 
                                    bounds = ((None, None), (1e-5, None), (1e-5, None), (1e-5, None)))
         return result.x
 
@@ -131,8 +97,16 @@ class GPPlot:
             self.ax.clear()
             self.ax.plot(x_disp, y_disp, label="f(x)") 
             self.ax.plot(self.X, self.y, 'o', label="data points")
-            self.ax.plot(self.x_ast, mu, label="Predicted mean")
+            self.ax.plot(self.x_ast, mu, '--', label="predicted mean")  # Updated line
             self.ax.fill_between(self.x_ast, lower_bound, upper_bound, alpha=0.2)
+            mu, cov = gp.conditional_dist()
+            std = np.sqrt(np.diag(cov))
+            best = np.max(self.y)
+            idx, ei = expected_improvement(mu, std, best)
+            new_x = self.x_ast[idx]
+            new_y = self.f(new_x)
+            self.ax.plot(new_x, new_y, 'o', label=" next point")
+            self.ax.plot(self.x_ast, ei, label="expected improvement")
             self.ax.legend()
             self.ax.set_ylim(-30, +30)
             plt.draw()
@@ -141,6 +115,7 @@ class GPPlot:
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from matplotlib.widgets import Slider
+    from acquisition_function import expected_improvement
 
     f = lambda x: (-(x-2)**2 + 1) * np.cos(x) + 5 * np.sin(2*x)
     x_disp = np.linspace(-5, 5, 100)
