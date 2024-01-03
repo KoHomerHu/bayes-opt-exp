@@ -19,4 +19,4 @@ Use ```python bayes_optimisation.py -h``` argument to see what acquisition funct
 ## TO-DO
 
 - [ ] Implementation of more efficient knowledge gradient
-- [ ] Implementation of entropy search
+- [ ] Implementation of predicted entropy search
