@@ -6,8 +6,12 @@ This is the implementation and visualisation of various techniques introduces in
 
 We use the RBF kernel and constant mean. The hyperparameters (i.e. mean, sigma, alpha, and length) maximize the negative log-likelihood. 
 
-Run ```gaussian_process.py```, use the sliders to change the alpha and length to see the impacts of these two hyperparameters.
+Run ```python gaussian_process.py```, use the sliders to change the alpha and length to see the impacts of these two hyperparameters.
 
 ## Bayesian optimisation
 
-An animation to optimize a function with only one peak (but not only one global optimum) is demonstrated by running ```bayes_optimisation.py```.
+An animation to optimize a function with only one peak (but not only one global optimum) is demonstrated by running ```python bayes_optimisation.py```.
+
+By default it uses the expected improvement as the acquisition function, which tends to exploit more, hence prone to get trapped in a local maxima. 
+
+Use ```python bayes_optimisation.py -h``` argument to see what acquisition functions are implemented.
