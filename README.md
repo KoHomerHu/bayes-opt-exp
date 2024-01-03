@@ -15,3 +15,8 @@ An animation to optimize a function with only one peak (but not only one global 
 By default it uses the expected improvement as the acquisition function, which tends to exploit more, hence prone to get trapped in a local maxima. 
 
 Use ```python bayes_optimisation.py -h``` argument to see what acquisition functions are implemented.
+
+## TO-DO
+
+- [ ] Implementation of more efficient knowledge gradient
+- [ ] Implementation of entropy search
