@@ -16,6 +16,12 @@ By default it uses the expected improvement as the acquisition function, which t
 
 Use ```python bayes_optimisation.py -h``` argument to see what acquisition functions are implemented.
 
+## PID cart-pole Experiment
+
+Use Bayesian optimization to tune the parameters for PID to solve the cart-pole environment.
+
+One tuple of parameters that the algorithm finds is $(160.68, 840.48, 59.21, 1000.00)$.
+
 ## TO-DO
 
 - [ ] Implementation of more efficient knowledge gradient
