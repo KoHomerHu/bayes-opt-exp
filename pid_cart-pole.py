@@ -24,27 +24,54 @@ class Sampler:
         self.env = env
 
     def sample(self, parameters):
-        kp1, kd1, ki1, kp2, kd2, ki2 = parameters
-        controller_angle = PID(kp1, kd1, ki1, goal=0)
-        controller_position = PID(kp2, kd2, ki2, goal=0)
+        if len(parameters) == 6 or len(parameters) == 4:
+            if len(parameters) == 6:
+                kp1, kd1, ki1, kp2, kd2, ki2 = parameters
+                controller_angle = PID(kp1, kd1, ki1, goal=0)
+                controller_position = PID(kp2, kd2, ki2, goal=0)
+            else:
+                kp1, kd1, kp2, kd2 = parameters
+                controller_angle = PID(kp1, kd1, 0, goal=0)
+                controller_position = PID(kp2, kd2, 0, goal=0)
 
-        ret = 0
-        ret_lst = []
-
-        for _ in range(self.num_episodes):
-            observation, _ = env.reset()
-            for _ in range(self.max_steps):
-                pole_angle = observation[2]
-                control_output_angle = controller_angle.control(pole_angle)
-                control_output_position = controller_position.control(observation[0])
-                action = 1 if control_output_angle + control_output_position < 0 else 0
-
-                observation, reward, terminated, truncated, info = env.step(action)
-                ret += reward
-                if terminated or truncated:
-                    break
-            ret_lst.append(ret)
             ret = 0
+            ret_lst = []
+
+            for _ in range(self.num_episodes):
+                observation, _ = env.reset()
+                for _ in range(self.max_steps):
+                    pole_angle = observation[2]
+                    control_output_angle = controller_angle.control(pole_angle)
+                    control_output_position = controller_position.control(observation[0])
+                    action = 1 if control_output_angle + control_output_position < 0 else 0
+
+                    observation, reward, terminated, truncated, info = env.step(action)
+                    ret += reward
+                    if terminated or truncated:
+                        break
+                ret_lst.append(ret)
+                ret = 0
+        else:
+            assert len(parameters) == 3
+            kp, kd, ki = parameters
+            controller = PID(kp, kd, ki, goal=0)
+            
+            ret = 0
+            ret_lst = []
+
+            for _ in range(self.num_episodes):
+                observation, _ = env.reset()
+                for _ in range(self.max_steps):
+                    pole_angle = observation[2]
+                    control_output = controller.control(pole_angle)
+                    action = 1 if control_output < 0 else 0
+
+                    observation, reward, terminated, truncated, info = env.step(action)
+                    ret += reward
+                    if terminated or truncated:
+                        break
+                ret_lst.append(ret)
+                ret = 0
 
         return sum(ret_lst) / len(ret_lst)
     
@@ -58,12 +85,12 @@ if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore")
 
-    n = 30 # initial number of data points
+    n = 5 # initial number of data points
     num_episodes = 50
-    max_steps = 300
+    max_steps = 100
     env = gym.make("CartPole-v1", render_mode="human")
     sampler = Sampler(num_episodes, max_steps, env)
-    train_X = 1000 * torch.rand(n, 6)
+    train_X = 1000 * torch.rand(n, 4)
     train_Y = torch.zeros(n, 1)
     for i in range(n):
         parameters = train_X[i].tolist()
@@ -74,19 +101,22 @@ if __name__ == "__main__":
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
     fit_gpytorch_mll(mll)
 
-    af = UpperConfidenceBound(gp, beta=2.5)
+    af = UpperConfidenceBound(gp, beta=0.5)
 
     bounds = torch.tensor([[
-        1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5
+        1e-5, 1e-5, 1e-5, 1e-5
     ], [
-        1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+        1.0, 1.0, 1.0, 1.0
     ]])
 
     best_ret = 0
     best_parameters = None
     ret_lst = []
 
-    for _ in range(30):
+    for _ in range(100):
+        if len(ret_lst) > 1:
+            if abs(ret_lst[-1] - ret_lst[-2]) < 1e-5:
+                break
         candidate, acq_value = optimize_acqf(
             acq_function=af,
             bounds=bounds,
@@ -115,13 +145,13 @@ if __name__ == "__main__":
             best_ret = avg_ret
             best_parameters = parameters
 
-        kp1, kd1, ki1, kp2, kd2, ki2 = parameters
-        print("For parameters ({:.2f}, {:.2f}, {:.2f}, {:.2f}, {:.2f}, {:.2f}), the average return is {}".format(kp1, kd1, ki1, kp2, kd2, ki2, avg_ret))
+        kp1, kd1, kp2, kd2 = parameters
+        print("For parameters ({:.2f}, {:.2f}, {:.2f}, {:.2f}), the average return is {}".format(kp1, kd1, kp2, kd2, avg_ret))
 
     env.close()
 
-    kp1, kd1, ki1, kp2, kd2, ki2 = best_parameters
-    print("Best parameters are ({:.2f}, {:.2f}, {:.2f}, {:.2f}, {:.2f}, {:.2f}) with average return {}".format(kp1, kd1, ki1, kp2, kd2, ki2, avg_ret))
+    kp1, kd1, kp2, kd2 = best_parameters
+    print("Best parameters are ({:.2f}, {:.2f}, {:.2f}, {:.2f}) with average return {}".format(kp1, kd1, kp2, kd2, avg_ret))
 
     import matplotlib.pyplot as plt
     plt.plot(ret_lst)
