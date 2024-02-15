@@ -52,14 +52,14 @@ if __name__ == "__main__":
     from botorch.models import SingleTaskGP
     from botorch.fit import fit_gpytorch_mll
     from gpytorch.mlls import ExactMarginalLogLikelihood
-    from botorch.acquisition import ExpectedImprovement
+    from botorch.acquisition import UpperConfidenceBound
     from botorch.optim import optimize_acqf
     import torch
     import warnings
     warnings.filterwarnings("ignore")
 
-    n = 10 # initial number of data points
-    num_episodes = 5
+    n = 30 # initial number of data points
+    num_episodes = 50
     max_steps = 300
     env = gym.make("CartPole-v1", render_mode="human")
     sampler = Sampler(num_episodes, max_steps, env)
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
     fit_gpytorch_mll(mll)
 
-    af = ExpectedImprovement(gp, best_f=train_Y.max())
+    af = UpperConfidenceBound(gp, beta=2.5)
 
     bounds = torch.tensor([[
         1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5
@@ -99,13 +99,15 @@ if __name__ == "__main__":
         avg_ret = sampler.sample(parameters)
         train_Y = torch.cat([train_Y, torch.tensor([[avg_ret,],])], dim=0)
         train_Y = (train_Y - train_Y.mean()) / train_Y.std()
+        gp = SingleTaskGP(train_X, train_Y)
         try:
-            gp = SingleTaskGP(train_X, train_Y)
             mll = ExactMarginalLogLikelihood(gp.likelihood, gp)
             fit_gpytorch_mll(mll)
         except:
+            print("Error fitting the model")
             pass
-        af = ExpectedImprovement(gp, best_f=train_Y.max())
+        af = UpperConfidenceBound(gp, beta=2.5)
+        # af = ExpectedImprovement(gp, best_f=train_Y.max())
 
         ret_lst.append(avg_ret)
 
